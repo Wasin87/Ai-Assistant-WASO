@@ -1,0 +1,8 @@
+{
+  "name": "WASO AI Assistant",
+  "description": "A professional AI assistant (WASO) with Bengali and English support, featuring multimodal inputs, voice interaction, and image generation.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
