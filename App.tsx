@@ -9,6 +9,8 @@ import Avatar from './components/Avatar';
 import { ChatSession, Message } from './types';
 import { gemini } from './services/geminiService';
 
+const generateId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+
 const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
@@ -24,8 +26,20 @@ const App: React.FC = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setSessions(parsed);
-        if (parsed.length > 0) setCurrentSessionId(parsed[0].id);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const sanitized: ChatSession[] = parsed.map((s: ChatSession, sIdx: number) => ({
+            ...s,
+            id: s.id ? String(s.id) : generateId(),
+            messages: Array.isArray(s.messages) ? s.messages.map((m: Message, mIdx: number) => ({
+              ...m,
+              id: m.id ? String(m.id) : generateId()
+            })) : []
+          }));
+          setSessions(sanitized);
+          setCurrentSessionId(sanitized[0].id);
+        } else {
+          createNewChat();
+        }
       } catch (e) {
         createNewChat();
       }
@@ -42,7 +56,7 @@ const App: React.FC = () => {
 
   const createNewChat = () => {
     const newSession: ChatSession = {
-      id: Date.now().toString(),
+      id: generateId(),
       title: 'New Chat',
       messages: [],
       updatedAt: Date.now(),
@@ -60,7 +74,7 @@ const App: React.FC = () => {
     setProcessingMsg(mode === 'image' ? 'WASO Image Synthesis' : 'WASO Analysis Mode');
     
     const userMessage: Message = {
-      id: Date.now().toString(),
+      id: generateId(),
       role: 'user',
       content: text,
       timestamp: Date.now(),
@@ -145,7 +159,7 @@ const App: React.FC = () => {
 
   const addAiMessage = (content: string, imageUrl?: string) => {
     const aiMessage: Message = {
-      id: Date.now().toString(),
+      id: generateId(),
       role: 'assistant',
       content,
       imageUrl,

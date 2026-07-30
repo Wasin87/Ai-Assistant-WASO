@@ -55,9 +55,9 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar px-4 space-y-2 pb-6">
-            {sessions.map(session => (
+            {sessions.map((session, idx) => (
               <div 
-                key={session.id}
+                key={`${session.id || 'session'}-${idx}`}
                 className={`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${
                   currentSessionId === session.id 
                   ? 'bg-blue-500/20 border border-blue-500/30' 

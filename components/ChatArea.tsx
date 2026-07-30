@@ -166,9 +166,9 @@ const ChatArea: React.FC<ChatAreaProps> = ({ messages, isProcessing, processingM
       ref={scrollRef}
       className="flex-1 overflow-y-auto custom-scrollbar space-y-4 md:space-y-6 pt-4 pb-12 px-1 md:px-2 scroll-smooth w-full"
     >
-      {messages.map((msg) => (
+      {messages.map((msg, idx) => (
         <div 
-          key={msg.id} 
+          key={`${msg.id || 'msg'}-${idx}`} 
           className={`flex w-full ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
         >
           <div className={`flex w-full md:max-w-[99%] space-x-1.5 md:space-x-4 ${msg.role === 'user' ? 'flex-row-reverse space-x-reverse pl-2' : 'flex-row pr-2'}`}>

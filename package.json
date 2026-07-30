@@ -13,7 +13,7 @@
     "@google/genai": "^1.38.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "lucide-react": "^0.475.0",
+    "lucide-react": "^0.563.0",
     "react-markdown": "^9.0.3",
     "remark-gfm": "^4.0.1",
     "react-syntax-highlighter": "^16.1.0"
@@ -25,5 +25,8 @@
     "@vitejs/plugin-react": "^4.3.4",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
+  },
+  "overrides": {
+    "glob": "^11.0.0"
   }
 }
