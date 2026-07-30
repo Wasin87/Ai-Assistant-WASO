@@ -6,6 +6,7 @@ import ChatArea from './components/ChatArea';
 import InputArea from './components/InputArea';
 import LiveArea from './components/LiveArea';
 import Avatar from './components/Avatar';
+import SrsModal from './components/SrsModal';
 import { ChatSession, Message } from './types';
 import { gemini } from './services/geminiService';
 
@@ -15,6 +16,7 @@ const App: React.FC = () => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSrsOpen, setIsSrsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'live'>('chat');
   const [isProcessing, setIsProcessing] = useState(false);
   const [processingMsg, setProcessingMsg] = useState('WASO Analysis Mode');
@@ -126,9 +128,9 @@ const App: React.FC = () => {
       }
 
       if (aiResponse) addAiMessage(aiResponse, imageUrl);
-    } catch (err) {
-      console.error(err);
-      addAiMessage("An unexpected neural interrupt occurred during synthesis.");
+    } catch (err: any) {
+      console.error("Chat handler exception:", err);
+      addAiMessage(`### ⚠️ Connection Interrupt\n\n${err?.message || 'An error occurred while connecting to WASO AI services.'}\n\nPlease verify your network or Gemini API key settings.`);
     } finally {
       setIsProcessing(false);
       setProcessingMsg('WASO Analysis Mode');
@@ -201,6 +203,11 @@ const App: React.FC = () => {
         activeTab={activeTab}
         onTabChange={setActiveTab}
         onNewChat={createNewChat}
+      />
+
+      <SrsModal 
+        isOpen={isSrsOpen}
+        onClose={() => setIsSrsOpen(false)}
       />
       
       <div className="flex-1 relative flex flex-col min-w-0 w-full overflow-hidden">

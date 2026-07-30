@@ -36,33 +36,49 @@ export class GeminiService {
     const errorStr = JSON.stringify(error).toLowerCase();
     const errorMessage = (error?.message || String(error)).toLowerCase();
     
+    // Check if API key is missing or invalid
+    const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+    if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY' || apiKey.trim() === '') {
+      if (typeof window !== 'undefined' && window.aistudio) {
+        try { await window.aistudio.openSelectKey(); } catch (e) {}
+      }
+      return "### 🔑 API Key Missing / API কী প্রয়োজন\n\nNo valid Gemini API key found. Please set your `GEMINI_API_KEY` or select a key from AI Studio.\n\nWASO ব্যবহারের জন্য আপনার Gemini API Key প্রদান করুন।";
+    }
+
     // Detect Quota Exceeded (429) or Permission Denied (403)
     const isQuotaError = errorMessage.includes("quota") || errorMessage.includes("429") || errorStr.includes("resource_exhausted");
     const isPermissionError = errorMessage.includes("permission") || errorMessage.includes("403") || errorMessage.includes("not found");
 
     if (isQuotaError || isPermissionError) {
-      console.warn("Quota or Permission issue detected. Triggering key selection...");
+      console.warn("Quota or Permission issue detected.");
       
-      if (window.aistudio) {
-        // Platform requirement: Reset and prompt for key on these specific errors
-        await window.aistudio.openSelectKey();
-        
-        if (isQuotaError) {
-          return "### ⚠️ Quota Exceeded / কোটা শেষ হয়ে গেছে\n\nYour current API key has reached its usage limit. To continue using WASO's advanced Pro models, please **select an API key from a Paid Google Cloud Project** with billing enabled.\n\nআপনার বর্তমান API কোটা শেষ হয়ে গেছে। WASO-র উন্নত সার্ভিসগুলো ব্যবহার চালিয়ে যেতে একটি **পেইড গুগল ক্লাউড প্রজেক্ট** থেকে API কী সিলেক্ট করুন।\n\n[Learn about Gemini API Billing](https://ai.google.dev/gemini-api/docs/billing)";
-        } else {
-          return "### 🚫 Permission Denied / অ্যাক্সেস নেই\n\nWASO requires an API key with access to Pro models. Please ensure you have selected a valid key from a project that has the Gemini API enabled and supports high-tier models.\n\nWASO ব্যবহারের জন্য প্রো মডেল সাপোর্ট করে এমন একটি ভ্যালিড API কী প্রয়োজন। অনুগ্রহ করে আপনার প্রজেক্ট সেটিং চেক করুন।";
+      if (typeof window !== 'undefined' && window.aistudio) {
+        try {
+          await window.aistudio.openSelectKey();
+        } catch (e) {
+          console.warn("Could not trigger AI Studio key selector", e);
         }
+      }
+
+      if (isQuotaError) {
+        return "### ⚠️ Quota Exceeded / কোটা শেষ হয়ে গেছে\n\nYour API key has reached its request quota limit. Please wait a minute or select/provide a Gemini API key from a project with available quota.\n\nআপনার Gemini API Key-এর ফ্রি রিকোয়েস্ট কোটা শেষ হয়ে গেছে। কিছুক্ষণ পর আবার চেষ্টা করুন অথবা একটি নতুন API Key ব্যবহার করুন।\n\n[Learn about Gemini API Quotas](https://ai.google.dev/gemini-api/docs/rate-limits)";
+      } else {
+        return "### 🚫 Permission Denied / অ্যাক্সেস নেই\n\nYour API key does not have permission for this Gemini model. Please select a valid Gemini API key.\n\nআপনার API Key-তে এই মডেলটির অ্যাক্সেস নেই। অনুগ্রহ করে একটি ভ্যালিড API Key প্রদান করুন।";
       }
     }
     
-    return "I encountered a neural interrupt while processing your request. Please try again or select a different API key if the issue persists.";
+    return `### ⚠️ WASO Neural Interrupt / সিস্টেম সংযোগ বিচ্ছিন্ন\n\nError: ${error?.message || "Unable to process request"}\n\nPlease check your internet connection or verify your Gemini API key settings.`;
   }
 
   private async ensureApiKey() {
-    if (window.aistudio) {
-      const hasKey = await window.aistudio.hasSelectedApiKey();
-      if (!hasKey) {
-        await window.aistudio.openSelectKey();
+    if (typeof window !== 'undefined' && window.aistudio) {
+      try {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        if (!hasKey) {
+          await window.aistudio.openSelectKey();
+        }
+      } catch (e) {
+        console.warn("AI Studio key check skipped/failed:", e);
       }
     }
   }
@@ -70,16 +86,33 @@ export class GeminiService {
   async generateTextResponse(prompt: string, history: { role: string; parts: { text: string }[] }[]) {
     try {
       await this.ensureApiKey();
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-pro-preview',
-        contents: [...history, { role: 'user', parts: [{ text: prompt }] }],
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION,
-          thinkingConfig: { thinkingBudget: 32768 }
-        }
-      });
-      return response.text;
+      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY;
+      if (!apiKey || apiKey === 'PLACEHOLDER_API_KEY') {
+        return await this.handleApiError(new Error("API key missing"));
+      }
+      const ai = new GoogleGenAI({ apiKey });
+      
+      // Primary ultra-fast & reliable model for chat: gemini-2.5-flash
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: [...history, { role: 'user', parts: [{ text: prompt }] }],
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION
+          }
+        });
+        return response.text;
+      } catch (primaryError: any) {
+        console.warn("Primary model (gemini-2.5-flash) failed, attempting fallback to gemini-3-flash-preview...", primaryError);
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: [...history, { role: 'user', parts: [{ text: prompt }] }],
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION
+          }
+        });
+        return response.text;
+      }
     } catch (error) {
       return await this.handleApiError(error);
     }
@@ -123,19 +156,36 @@ export class GeminiService {
     try {
       await this.ensureApiKey();
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-      const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
-        contents: {
-          parts: [
-            { inlineData: { data: base64Data, mimeType } },
-            { text: text || "Please analyze this file." }
-          ]
-        },
-        config: {
-          systemInstruction: SYSTEM_INSTRUCTION
-        }
-      });
-      return response.text;
+      try {
+        const response = await ai.models.generateContent({
+          model: 'gemini-3-flash-preview',
+          contents: {
+            parts: [
+              { inlineData: { data: base64Data, mimeType } },
+              { text: text || "Please analyze this file." }
+            ]
+          },
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION
+          }
+        });
+        return response.text;
+      } catch (primaryError: any) {
+        console.warn("Primary multimodal model failed, falling back to gemini-2.5-flash...", primaryError);
+        const response = await ai.models.generateContent({
+          model: 'gemini-2.5-flash',
+          contents: {
+            parts: [
+              { inlineData: { data: base64Data, mimeType } },
+              { text: text || "Please analyze this file." }
+            ]
+          },
+          config: {
+            systemInstruction: SYSTEM_INSTRUCTION
+          }
+        });
+        return response.text;
+      }
     } catch (error) {
       return await this.handleApiError(error);
     }

@@ -16,7 +16,7 @@ const Navbar: React.FC<NavbarProps> = ({ onOpenSidebar, onNewChat, activeTab, on
         <img 
           src="https://i.ibb.co.com/Hp1PLn3q/Ai-removebg-preview.png" 
           alt="WASO Logo" 
-          className="w-8 h-8 md:w-10 md:h-10 object-contain group-hover:scale-110 transition-transform cursor-pointer"
+          className="w-8 h-8 md:w-10 md:h-10 object-contain group-hover:scale-110 transition-transform"
         />
         <span className="font-extrabold text-lg md:text-2xl tracking-tighter bg-clip-text text-transparent bg-gradient-to-r from-[#00b4d8] via-blue-400 to-cyan-300 drop-shadow-sm">
           WASO
